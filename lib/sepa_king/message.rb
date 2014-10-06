@@ -103,6 +103,21 @@ module SEPA
         builder.CtrlSum('%.2f' % amount_total)
         builder.InitgPty do
           builder.Nm(account.name)
+          builder.Id do
+            if account.is_company?
+              builder.OrgId do
+                builder.Othr do
+                  builder.Id(account.creditor_identifier)
+                end
+              end
+            else
+              builder.PrvtId do
+                builder.Othr do
+                  builder.Id(account.creditor_identifier)
+                end
+              end
+            end
+          end
         end
       end
     end
