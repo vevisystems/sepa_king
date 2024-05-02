@@ -1,14 +1,14 @@
 # encoding: utf-8
 require 'spec_helper'
 
-describe SEPA::Transaction do
+RSpec.describe SEPA::Transaction do
   describe :new do
     it 'should have default for reference' do
       expect(SEPA::Transaction.new.reference).to eq('NOTPROVIDED')
     end
 
     it 'should have default for requested_date' do
-      expect(SEPA::Transaction.new.requested_date).to eq(Date.today.next)
+      expect(SEPA::Transaction.new.requested_date).to eq(Date.new(1999, 1, 1))
     end
 
     it 'should have default for batch_booking' do
@@ -23,6 +23,52 @@ describe SEPA::Transaction do
 
     it 'should not accept invalid value' do
       expect(SEPA::Transaction).not_to accept(nil, '', 'X' * 71, for: :name)
+    end
+  end
+
+  context 'Address' do
+    context 'with address_line' do
+      it 'should accept valid value' do
+        expect(SEPA::Transaction).to accept(SEPA::DebtorAddress.new(
+          country_code: "CH",
+          address_line1: "Musterstrasse 123",
+          address_line2: "1234 Musterstadt"
+        ), for: :debtor_address)
+      end
+
+      it 'should accept valid value' do
+        expect(SEPA::Transaction).to accept(SEPA::CreditorAddress.new(
+          country_code: "CH",
+          address_line1: "Musterstrasse 123",
+          address_line2: "1234 Musterstadt"
+        ), for: :creditor_address)
+      end
+    end
+
+    context 'with individual address fields' do
+      it 'should accept valid value' do
+        expect(SEPA::Transaction).to accept(SEPA::DebtorAddress.new(
+          country_code: "CH",
+          street_name:     'Mustergasse',
+          building_number: '123',
+          post_code:       '1234',
+          town_name:       'Musterstadt'
+        ), for: :debtor_address)
+      end
+
+      it 'should accept valid value' do
+        expect(SEPA::Transaction).to accept(SEPA::CreditorAddress.new(
+          country_code: "CH",
+          street_name:     'Mustergasse',
+          building_number: '123',
+          post_code:       '1234',
+          town_name:       'Musterstadt'
+        ), for: :creditor_address)
+      end
+    end
+
+    it 'should not accept invalid value' do
+      expect(SEPA::Transaction).not_to accept('', {} , for: :name)
     end
   end
 
@@ -73,6 +119,16 @@ describe SEPA::Transaction do
 
     it 'should not allow invalid value' do
       expect(SEPA::Transaction).not_to accept('', 'X' * 141, for: :remittance_information)
+    end
+  end
+
+  context 'Currency' do
+    it 'should allow valid values' do
+      expect(SEPA::Transaction).to accept('EUR', 'CHF', 'SEK', for: :currency)
+    end
+
+    it 'should not allow invalid values' do
+      expect(SEPA::Transaction).not_to accept('', 'EURO', 'ABCDEF', for: :currency)
     end
   end
 end

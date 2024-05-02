@@ -1,10 +1,9 @@
 # Ruby gem for creating SEPA XML files
 
-[![Build Status](https://secure.travis-ci.org/salesking/sepa_king.png)](http://travis-ci.org/salesking/sepa_king)
-[![Code Climate](https://codeclimate.com/github/salesking/sepa_king.png)](https://codeclimate.com/github/salesking/sepa_king)
-[![Coverage Status](https://coveralls.io/repos/salesking/sepa_king/badge.png)](https://coveralls.io/r/salesking/sepa_king)
-[![Gem Version](https://badge.fury.io/rb/sepa_king.png)](http://badge.fury.io/rb/sepa_king)
-[![Dependency Status](https://gemnasium.com/salesking/sepa_king.png)](https://gemnasium.com/salesking/sepa_king)
+[![Build Status](https://github.com/salesking/sepa_king/workflows/Test/badge.svg?branch=master)](https://github.com/salesking/sepa_king/actions)
+[![Code Climate](https://codeclimate.com/github/salesking/sepa_king/badges/gpa.svg)](https://codeclimate.com/github/salesking/sepa_king)
+[![Coverage Status](https://coveralls.io/repos/salesking/sepa_king/badge.svg?branch=master)](https://coveralls.io/r/salesking/sepa_king?branch=master)
+[![Gem Version](https://badge.fury.io/rb/sepa_king.svg)](http://badge.fury.io/rb/sepa_king)
 
 We love building payment applications! So after developing the [DTAUS library for Ruby](https://github.com/salesking/king_dtaus) we move on with SEPA.
 
@@ -13,17 +12,18 @@ We love building payment applications! So after developing the [DTAUS library fo
 
 This gem implements the following two messages out of the ISO 20022 standard:
 
-* Credit Transfer Initiation (pain.001.003.03 and pain.001.002.03)
-* Direct Debit Initiation (pain.008.003.02 and pain.008.002.02 and pain.008.001.02)
+* Credit Transfer Initiation (`pain.001.003.03`, `pain.001.002.03` and `pain.001.001.03`)
+* Direct Debit Initiation (`pain.008.003.02`, `pain.008.002.02` and `pain.008.001.02`)
 
-This means it handles the "Specification of Data Formats" in version 2.6 (2012-11-17) and version 2.7 (2013-11-04)
+It handles the _Specification of Data Formats_ v3.3 (2019-11-17).
 
 BTW: **pain** is a shortcut for **Pa**yment **In**itiation.
 
 
 ## Requirements
 
-* Ruby 1.9.3 or newer
+* Ruby 2.7 or newer
+* ActiveModel 4.2 or newer (including 7.0)
 
 
 ## Installation
@@ -69,9 +69,13 @@ sdd.add_transaction(
   # String, max. 34 chars
   iban:                      'DE21500500009876543210',
 
-  # Amount in EUR
+  # Amount
   # Number with two decimal digit
   amount:                    39.99,
+
+  # OPTIONAL: Currency, EUR by default (ISO 4217 standard)
+  # String, 3 char
+  currency:                  'EUR',
 
   # OPTIONAL: Instruction Identification, will not be submitted to the debtor
   # String, max. 35 char
@@ -96,7 +100,7 @@ sdd.add_transaction(
   # Local instrument, in German "Lastschriftart"
   # One of these strings:
   #   'CORE' ("Basis-Lastschrift")
-  #   'COR1' ("Basis-Lastschrift mit verkürzter Vorlagefrist")
+  #   'COR1' ("Basis-Lastschrift mit verkürzter Vorlagefrist")
   #   'B2B' ("Firmen-Lastschrift")
   local_instrument: 'CORE',
 
@@ -124,12 +128,25 @@ sdd.add_transaction(
     iban:                'NL08RABO0135742099',
     creditor_identifier: 'NL53ZZZ091734220000'
   )
+
+  # OPTIONAL: Specify the country & address of the debtor (REQUIRED for SEPA debits outside of EU. The individually required fields depend on the target country)
+  debtor_address: SEPA::DebtorAddress.new(
+    country_code:        'CH',
+    # Not required if individual fields are used
+    address_line1:       'Mustergasse 123a',
+    address_line2:       '1234 Musterstadt'
+    # Not required if address_line1 and address_line2 are used
+    street_name:         'Mustergasse',
+    building_number:     '123a',
+    post_code:           '1234',
+    town_name:           'Musterstadt'
+  )
 )
 sdd.add_transaction ...
 
 # Last: create XML string
-xml_string = sdd.to_xml # Use latest schema pain.008.003.02
-xml_string = sdd.to_xml('pain.008.002.02') # Use former schema pain.008.002.02
+xml_string = sdd.to_xml                    # Use schema pain.008.001.02
+xml_string = sdd.to_xml('pain.008.002.02') # Use schema pain.008.002.02
 ```
 
 
@@ -165,9 +182,17 @@ sct.add_transaction(
   # String, max. 34 chars
   iban:                   'DE37112589611964645802',
 
-  # Amount in EUR
+  # Amount
   # Number with two decimal digit
   amount:                 102.50,
+
+  # OPTIONAL: Currency, EUR by default (ISO 4217 standard)
+  # String, 3 char
+  currency:               'EUR',
+
+  # OPTIONAL: Instruction Identification, will not be submitted to the creditor
+  # String, max. 35 char
+  instruction:               '12345',
 
   # OPTIONAL: End-To-End-Identification, will be submitted to the creditor
   # String, max. 35 char
@@ -175,7 +200,7 @@ sct.add_transaction(
 
   # OPTIONAL: Unstructured remittance information, in German "Verwendungszweck"
   # String, max. 140 char
-  remittance_information: 'Rechnung vom 22.08.2013'
+  remittance_information: 'Rechnung vom 22.08.2013',
 
   # OPTIONAL: Requested execution date, in German "Ausführungstermin"
   # Date
@@ -185,17 +210,34 @@ sct.add_transaction(
   # True or False
   batch_booking: true,
 
-  # OPTIONAL: Urgent Payment
+  # OPTIONAL: Urgent Payment
   # One of these strings:
   #   'SEPA' ("SEPA-Zahlung")
-  #   'URGP' ("Taggleiche Eilüberweisung")
+  #   'URGP' ("Taggleiche Eilüberweisung")
   service_level: 'URGP'
+
+  # OPTIONAL: Unstructured information to indicate the purpose of the payment
+  # String, max. 4 char
+  category_purpose:         'SALA',
+
+  # OPTIONAL: Specify the country & address of the creditor (REQUIRED for SEPA debits outside of EU. The individually required fields depend on the target country)
+  creditor_address: SEPA::CreditorAddress.new(
+    country_code:        'CH',
+    # Not required if individual fields are used
+    address_line1:       'Mustergasse 123a',
+    address_line2:       '1234 Musterstadt'
+    # Not required if address_line1 and address_line2 are used
+    street_name:         'Mustergasse',
+    building_number:     '123a',
+    post_code:           '1234',
+    town_name:           'Musterstadt'
+  )
 )
 sct.add_transaction ...
 
 # Last: create XML string
-xml_string = sct.to_xml # Use latest schema pain.001.003.03
-xml_string = sct.to_xml('pain.001.002.03') # Use former schema pain.001.002.03
+xml_string = sct.to_xml                    # Use schema pain.001.001.03
+xml_string = sct.to_xml('pain.001.002.03') # Use schema pain.001.002.03
 ```
 
 ## Validations
@@ -224,6 +266,8 @@ class Payment < ActiveRecord::Base
 end
 ```
 
+**Beware:** The SEPA::IBANValidator is strict - e.g. it does not allow any spaces in the IBAN.
+
 Also see:
 * [lib/sepa_king/validator.rb](https://github.com/salesking/sepa_king/blob/master/lib/sepa_king/validator.rb)
 * [lib/sepa_king/transaction/direct_debit_transaction.rb](https://github.com/salesking/sepa_king/blob/master/lib/sepa_king/transaction/direct_debit_transaction.rb)
@@ -241,7 +285,7 @@ https://github.com/salesking/sepa_king/graphs/contributors
 
 ## Resources
 
-* http://www.ebics.de/index.php?id=77
+* https://www.ebics.de/de/datenformate
 * SalesKing: http://salesking.eu
 
 
@@ -249,4 +293,4 @@ https://github.com/salesking/sepa_king/graphs/contributors
 
 Released under the MIT license
 
-Copyright (c) 2013 Georg Leciejewski (SalesKing), Georg Ledermann (https://github.com/ledermann)
+Copyright (c) 2013-2022 Georg Leciejewski (SalesKing), Georg Ledermann (https://github.com/ledermann)

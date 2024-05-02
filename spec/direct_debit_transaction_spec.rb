@@ -1,7 +1,7 @@
 # encoding: utf-8
 require 'spec_helper'
 
-describe SEPA::DirectDebitTransaction do
+RSpec.describe SEPA::DirectDebitTransaction do
   describe :initialize do
     it 'should create a valid transaction' do
       expect(
@@ -19,19 +19,30 @@ describe SEPA::DirectDebitTransaction do
 
   describe :schema_compatible? do
     context 'for pain.008.003.02' do
-      it 'should success' do
+      it 'should succeed' do
         expect(SEPA::DirectDebitTransaction.new({})).to be_schema_compatible('pain.008.003.02')
+      end
+
+      it 'should fail for invalid attributes' do
+        expect(SEPA::DirectDebitTransaction.new(:currency => 'CHF')).not_to be_schema_compatible('pain.001.003.03')
       end
     end
 
     context 'for pain.008.002.02' do
-      it 'should success for valid attributes' do
+      it 'should succeed for valid attributes' do
         expect(SEPA::DirectDebitTransaction.new(:bic => 'SPUEDE2UXXX', :local_instrument => 'CORE')).to be_schema_compatible('pain.008.002.02')
       end
 
       it 'should fail for invalid attributes' do
         expect(SEPA::DirectDebitTransaction.new(:bic => nil)).not_to be_schema_compatible('pain.008.002.02')
         expect(SEPA::DirectDebitTransaction.new(:bic => 'SPUEDE2UXXX', :local_instrument => 'COR1')).not_to be_schema_compatible('pain.008.002.02')
+        expect(SEPA::DirectDebitTransaction.new(:bic => 'SPUEDE2UXXX', :currency => 'CHF')).not_to be_schema_compatible('pain.008.002.02')
+      end
+    end
+
+    context 'for pain.008.001.02' do
+      it 'should succeed for valid attributes' do
+        expect(SEPA::DirectDebitTransaction.new(:bic => 'SPUEDE2UXXX', :currency => 'CHF')).to be_schema_compatible('pain.008.001.02')
       end
     end
   end
@@ -48,7 +59,7 @@ describe SEPA::DirectDebitTransaction do
 
   context 'Requested date' do
     it 'should allow valid value' do
-      expect(SEPA::DirectDebitTransaction).to accept(nil, Date.today.next, Date.today + 2, for: :requested_date)
+      expect(SEPA::DirectDebitTransaction).to accept(nil, Date.new(1999, 1, 1), Date.today.next, Date.today + 2, for: :requested_date)
     end
 
     it 'should not allow invalid value' do
