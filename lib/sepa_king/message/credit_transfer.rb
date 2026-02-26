@@ -2,7 +2,7 @@
 
 module SEPA
   class CreditTransfer < Message
-    self.account_class = CreditorAccount
+    self.account_class = DebtorAccount
     self.transaction_class = CreditTransferTransaction
     self.xml_main_tag = 'CstmrCdtTrfInitn'
     self.known_schemas = [ PAIN_001_001_03, PAIN_001_001_03_CH_02, PAIN_001_003_03, PAIN_001_002_03 ]
